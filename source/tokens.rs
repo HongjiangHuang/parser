@@ -51,7 +51,14 @@ use nom::{
     InputIter,
     InputLength,
     Offset,
-    Slice
+    Slice,
+    InputTake,
+    InputTakeAtPosition,
+    IResult,
+    Err,
+    Needed,
+    Context,
+    ErrorKind,
 };
 use super::internal::{
     Input,
@@ -1067,6 +1074,39 @@ impl<'a> InputIter for Span<'a> {
             Some(count)
         } else {
             None
+        }
+    }
+}
+
+impl<'a> InputTake for Span<'a> {
+    fn take(&self, count: usize) -> Self {
+        self.slice(..count)
+    }
+
+    fn take_split(&self, count: usize) -> (Self, Self) {
+        (self.slice(count..), self.slice(..count))
+    }
+}
+
+impl<'a> InputTakeAtPosition for Span<'a> {
+    type Item = InputElement;
+    fn split_at_position<P>(&self, predicate: P) -> IResult<Self, Self, u32>
+    where
+        P: Fn(Self::Item) -> bool,
+    {
+        match (0..self.slice.len()).find(|b| predicate(self.slice[*b])) {
+            Some(i) => Ok((self.slice(i..), self.slice(..i))),
+            None => Err(Err::Incomplete(Needed::Size(1))),
+        }
+    }
+    fn split_at_position1<P>(&self, predicate: P, e: ErrorKind<u32>) -> IResult<Self, Self, u32>
+    where
+        P: Fn(Self::Item) -> bool,
+    {
+        match (0..self.slice.len()).find(|b| predicate(self.slice[*b])) {
+            Some(0) => Err(Err::Error(Context::Code(*self, e))),
+            Some(i) => Ok((self.slice(i..), self.slice(..i))),
+            None => Err(Err::Incomplete(Needed::Size(1))),
         }
     }
 }
