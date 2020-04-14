@@ -35,31 +35,16 @@
 //! Specification in the [Chapter chapter, Function Definition
 //! section](https://github.com/php/php-langspec/blob/master/spec/19-grammar.md#function-definition).
 
-use std::result::Result as StdResult;
-use super::compound_statement;
-use super::super::expressions::constant::constant_expression;
-use super::super::tokens::{
-    name,
-    qualified_name,
-    variable
-};
 use super::super::super::ast::{
-    Arity,
-    Expression,
-    Function,
-    Name,
-    Parameter,
-    Statement,
-    Ty,
-    Variable
+    Arity, Expression, Function, Name, Parameter, Statement, Ty, Variable,
 };
-use super::super::super::internal::{
-    Context,
-    Error,
-    ErrorKind
-};
+use super::super::super::internal::{Context, Error, ErrorKind};
 use super::super::super::tokens;
 use super::super::super::tokens::Span;
+use super::super::expressions::constant::constant_expression;
+use super::super::tokens::{name, qualified_name, variable};
+use super::compound_statement;
+use std::result::Result as StdResult;
 
 /// Function errors.
 pub enum FunctionError {
@@ -68,7 +53,7 @@ pub enum FunctionError {
     InvalidVariadicParameterPosition,
 
     /// A function has multiple parameters declared with the same name.
-    MultipleParametersWithSameName
+    MultipleParametersWithSameName,
 }
 
 named_attr!(
@@ -320,27 +305,37 @@ named_attr!(
 );
 
 #[inline]
-fn parameters_mapper<'a, 'b>(pairs: Option<Vec<(Parameter<'a>, bool)>>, input: Span<'b>) -> StdResult<Arity<'a>, Error<Span<'b>>> {
+fn parameters_mapper<'a, 'b>(
+    pairs: Option<Vec<(Parameter<'a>, bool)>>,
+    input: Span<'b>,
+) -> StdResult<Arity<'a>, Error<Span<'b>>> {
     let mut pairs = match pairs {
-        Some(pairs) => {
-            pairs
-        },
+        Some(pairs) => pairs,
 
         None => {
             return Ok(Arity::Constant);
         }
     };
 
-    let last_pair      = pairs.pop();
+    let last_pair = pairs.pop();
     let mut parameters = Vec::new();
 
     for (parameter, is_variadic) in pairs {
         if is_variadic {
-            return Err(Error::Error(Context::Code(input, ErrorKind::Custom(FunctionError::InvalidVariadicParameterPosition as u32))));
+            return Err(Error::Error(Context::Code(
+                input,
+                ErrorKind::Custom(FunctionError::InvalidVariadicParameterPosition as u32),
+            )));
         }
 
-        if parameters.iter().any(|p: &Parameter<'a>| p.name == parameter.name) {
-            return Err(Error::Error(Context::Code(input, ErrorKind::Custom(FunctionError::MultipleParametersWithSameName as u32))));
+        if parameters
+            .iter()
+            .any(|p: &Parameter<'a>| p.name == parameter.name)
+        {
+            return Err(Error::Error(Context::Code(
+                input,
+                ErrorKind::Custom(FunctionError::MultipleParametersWithSameName as u32),
+            )));
         }
 
         parameters.push(parameter);
@@ -348,8 +343,14 @@ fn parameters_mapper<'a, 'b>(pairs: Option<Vec<(Parameter<'a>, bool)>>, input: S
 
     match last_pair {
         Some((last_parameter, is_variadic)) => {
-            if parameters.iter().any(|p: &Parameter<'a>| p.name == last_parameter.name) {
-                return Err(Error::Error(Context::Code(input, ErrorKind::Custom(FunctionError::MultipleParametersWithSameName as u32))));
+            if parameters
+                .iter()
+                .any(|p: &Parameter<'a>| p.name == last_parameter.name)
+            {
+                return Err(Error::Error(Context::Code(
+                    input,
+                    ErrorKind::Custom(FunctionError::MultipleParametersWithSameName as u32),
+                )));
             }
 
             parameters.push(last_parameter);
@@ -359,11 +360,9 @@ fn parameters_mapper<'a, 'b>(pairs: Option<Vec<(Parameter<'a>, bool)>>, input: S
             } else {
                 Ok(Arity::Finite(parameters))
             }
-        },
-
-        None => {
-            Ok(Arity::Constant)
         }
+
+        None => Ok(Arity::Constant),
     }
 }
 
@@ -414,21 +413,13 @@ fn into_vector_mapper<T>(item: T) -> StdResult<Vec<T>, ()> {
 #[inline]
 fn into_type<'a>(ty: Option<Name<'a>>, is_nullable: bool, is_a_reference: bool) -> Ty<'a> {
     match (ty, is_nullable, is_a_reference) {
-        (Some(ty) , true, false) => {
-            Ty::NullableCopy(ty)
-        },
+        (Some(ty), true, false) => Ty::NullableCopy(ty),
 
-        (Some(ty), true, true) => {
-            Ty::NullableReference(ty)
-        },
+        (Some(ty), true, true) => Ty::NullableReference(ty),
 
-        (ty, false, false) => {
-            Ty::Copy(ty)
-        },
+        (ty, false, false) => Ty::Copy(ty),
 
-        (ty, false, true) => {
-            Ty::Reference(ty)
-        },
+        (ty, false, true) => Ty::Reference(ty),
 
         _ => {
             unreachable!();
@@ -438,18 +429,18 @@ fn into_type<'a>(ty: Option<Name<'a>>, is_nullable: bool, is_a_reference: bool) 
 
 #[inline]
 fn into_parameter<'a>(
-    ty           : Ty<'a>,
-    is_variadic  : bool,
-    name         : Variable<'a>,
-    default_value: Option<Expression<'a>>
+    ty: Ty<'a>,
+    is_variadic: bool,
+    name: Variable<'a>,
+    default_value: Option<Expression<'a>>,
 ) -> (Parameter<'a>, bool) {
     (
         Parameter {
-            ty   : ty,
-            name : name,
-            value: default_value
+            ty: ty,
+            name: name,
+            value: default_value,
         },
-        is_variadic
+        is_variadic,
     )
 }
 
@@ -504,76 +495,52 @@ fn native_type_mapper(native_type_name: Span) -> Result<Name, ()> {
 
 #[inline]
 fn into_function<'a>(
-    name  : Span<'a>,
+    name: Span<'a>,
     inputs: Arity<'a>,
     output: Ty<'a>,
-    body  : Vec<Statement<'a>>
+    body: Vec<Statement<'a>>,
 ) -> Statement<'a> {
-    Statement::Function(
-        Function {
-            name  : name,
-            inputs: inputs,
-            output: output,
-            body  : body
-        }
-    )
+    Statement::Function(Function {
+        name: name,
+        inputs: inputs,
+        output: output,
+        body: body,
+    })
 }
-
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
-    use super::{
-        function,
-        native_type,
-        parameters
-    };
-    use super::super::statement;
     use super::super::super::super::ast::{
-        Arity,
-        Expression,
-        Function,
-        Literal,
-        Name,
-        Parameter,
-        Statement,
-        Ty,
-        Variable
+        Arity, Expression, Function, Literal, Name, Parameter, Statement, Ty, Variable,
     };
-    use super::super::super::super::internal::{
-        Context,
-        Error,
-        ErrorKind
-    };
-    use super::super::super::super::tokens::{
-        Span,
-        Token
-    };
+    use super::super::super::super::internal::{Context, Error, ErrorKind};
+    use super::super::super::super::tokens::{Span, Token};
+    use super::super::statement;
+    use super::{function, native_type, parameters};
+    use std::borrow::Cow;
 
     #[test]
     fn case_function() {
-        let input  = Span::new(b"function f(I $x, J &$y): O { return; }");
+        let input = Span::new(b"function f(I $x, J &$y): O { return; }");
         let output = Ok((
             Span::new_at(b"", 38, 1, 39),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 9, 1, 10),
-                    inputs: Arity::Finite(vec![
-                        Parameter {
-                            ty   : Ty::Copy(Some(Name::Unqualified(Span::new_at(b"I", 11, 1, 12)))),
-                            name : Variable(Span::new_at(b"x", 14, 1, 15)),
-                            value: None
-                        },
-                        Parameter {
-                            ty   : Ty::Reference(Some(Name::Unqualified(Span::new_at(b"J", 17, 1, 18)))),
-                            name : Variable(Span::new_at(b"y", 21, 1, 22)),
-                            value: None
-                        }
-                    ]),
-                    output: Ty::Copy(Some(Name::Unqualified(Span::new_at(b"O", 25, 1, 26)))),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 9, 1, 10),
+                inputs: Arity::Finite(vec![
+                    Parameter {
+                        ty: Ty::Copy(Some(Name::Unqualified(Span::new_at(b"I", 11, 1, 12)))),
+                        name: Variable(Span::new_at(b"x", 14, 1, 15)),
+                        value: None,
+                    },
+                    Parameter {
+                        ty: Ty::Reference(Some(Name::Unqualified(Span::new_at(b"J", 17, 1, 18)))),
+                        name: Variable(Span::new_at(b"y", 21, 1, 22)),
+                        value: None,
+                    },
+                ]),
+                output: Ty::Copy(Some(Name::Unqualified(Span::new_at(b"O", 25, 1, 26)))),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -582,17 +549,15 @@ mod tests {
 
     #[test]
     fn case_function_arity_zero() {
-        let input  = Span::new(b"function f() {}");
+        let input = Span::new(b"function f() {}");
         let output = Ok((
             Span::new_at(b"", 15, 1, 16),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 9, 1, 10),
-                    inputs: Arity::Constant,
-                    output: Ty::Copy(None),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 9, 1, 10),
+                inputs: Arity::Constant,
+                output: Ty::Copy(None),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -601,38 +566,43 @@ mod tests {
 
     #[test]
     fn case_function_arity_many() {
-        let input  = Span::new(b"function f($a, I\\J $b, int &$c, \\K $d) {}");
+        let input = Span::new(b"function f($a, I\\J $b, int &$c, \\K $d) {}");
         let output = Ok((
             Span::new_at(b"", 41, 1, 42),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 9, 1, 10),
-                    inputs: Arity::Finite(vec![
-                        Parameter {
-                            ty   : Ty::Copy(None),
-                            name : Variable(Span::new_at(b"a", 12, 1, 13)),
-                            value: None
-                        },
-                        Parameter {
-                            ty   : Ty::Copy(Some(Name::Qualified(smallvec![Span::new_at(b"I", 15, 1, 16), Span::new_at(b"J", 17, 1, 18)]))),
-                            name : Variable(Span::new_at(b"b", 20, 1, 21)),
-                            value: None
-                        },
-                        Parameter {
-                            ty   : Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(b"int", 23, 1, 24)]))),
-                            name : Variable(Span::new_at(b"c", 29, 1, 30)),
-                            value: None
-                        },
-                        Parameter {
-                            ty   : Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(b"K", 33, 1, 34)]))),
-                            name : Variable(Span::new_at(b"d", 36, 1, 37)),
-                            value: None
-                        }
-                    ]),
-                    output: Ty::Copy(None),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 9, 1, 10),
+                inputs: Arity::Finite(vec![
+                    Parameter {
+                        ty: Ty::Copy(None),
+                        name: Variable(Span::new_at(b"a", 12, 1, 13)),
+                        value: None,
+                    },
+                    Parameter {
+                        ty: Ty::Copy(Some(Name::Qualified(smallvec![
+                            Span::new_at(b"I", 15, 1, 16),
+                            Span::new_at(b"J", 17, 1, 18)
+                        ]))),
+                        name: Variable(Span::new_at(b"b", 20, 1, 21)),
+                        value: None,
+                    },
+                    Parameter {
+                        ty: Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(
+                            b"int", 23, 1, 24
+                        )]))),
+                        name: Variable(Span::new_at(b"c", 29, 1, 30)),
+                        value: None,
+                    },
+                    Parameter {
+                        ty: Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(
+                            b"K", 33, 1, 34
+                        )]))),
+                        name: Variable(Span::new_at(b"d", 36, 1, 37)),
+                        value: None,
+                    },
+                ]),
+                output: Ty::Copy(None),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -641,33 +611,36 @@ mod tests {
 
     #[test]
     fn case_variadic_function_arity_many() {
-        let input  = Span::new(b"function f($a, I\\J $b, int &...$c) {}");
+        let input = Span::new(b"function f($a, I\\J $b, int &...$c) {}");
         let output = Ok((
             Span::new_at(b"", 37, 1, 38),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 9, 1, 10),
-                    inputs: Arity::Infinite(vec![
-                        Parameter {
-                            ty   : Ty::Copy(None),
-                            name : Variable(Span::new_at(b"a", 12, 1, 13)),
-                            value: None
-                        },
-                        Parameter {
-                            ty   : Ty::Copy(Some(Name::Qualified(smallvec![Span::new_at(b"I", 15, 1, 16), Span::new_at(b"J", 17, 1, 18)]))),
-                            name : Variable(Span::new_at(b"b", 20, 1, 21)),
-                            value: None
-                        },
-                        Parameter {
-                            ty   : Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(b"int", 23, 1, 24)]))),
-                            name : Variable(Span::new_at(b"c", 32, 1, 33)),
-                            value: None
-                        }
-                    ]),
-                    output: Ty::Copy(None),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 9, 1, 10),
+                inputs: Arity::Infinite(vec![
+                    Parameter {
+                        ty: Ty::Copy(None),
+                        name: Variable(Span::new_at(b"a", 12, 1, 13)),
+                        value: None,
+                    },
+                    Parameter {
+                        ty: Ty::Copy(Some(Name::Qualified(smallvec![
+                            Span::new_at(b"I", 15, 1, 16),
+                            Span::new_at(b"J", 17, 1, 18)
+                        ]))),
+                        name: Variable(Span::new_at(b"b", 20, 1, 21)),
+                        value: None,
+                    },
+                    Parameter {
+                        ty: Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(
+                            b"int", 23, 1, 24
+                        )]))),
+                        name: Variable(Span::new_at(b"c", 32, 1, 33)),
+                        value: None,
+                    },
+                ]),
+                output: Ty::Copy(None),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -676,17 +649,15 @@ mod tests {
 
     #[test]
     fn case_function_output_by_none_copy() {
-        let input  = Span::new(b"function f() {}");
+        let input = Span::new(b"function f() {}");
         let output = Ok((
             Span::new_at(b"", 15, 1, 16),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 9, 1, 10),
-                    inputs: Arity::Constant,
-                    output: Ty::Copy(None),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 9, 1, 10),
+                inputs: Arity::Constant,
+                output: Ty::Copy(None),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -695,17 +666,17 @@ mod tests {
 
     #[test]
     fn case_function_output_by_some_copy() {
-        let input  = Span::new(b"function f(): \\O {}");
+        let input = Span::new(b"function f(): \\O {}");
         let output = Ok((
             Span::new_at(b"", 19, 1, 20),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 9, 1, 10),
-                    inputs: Arity::Constant,
-                    output: Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(b"O", 15, 1, 16)]))),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 9, 1, 10),
+                inputs: Arity::Constant,
+                output: Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(
+                    b"O", 15, 1, 16
+                )]))),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -714,17 +685,17 @@ mod tests {
 
     #[test]
     fn case_function_output_by_nullable_copy() {
-        let input  = Span::new(b"function f(): ?\\O {}");
+        let input = Span::new(b"function f(): ?\\O {}");
         let output = Ok((
             Span::new_at(b"", 20, 1, 21),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 9, 1, 10),
-                    inputs: Arity::Constant,
-                    output: Ty::NullableCopy(Name::FullyQualified(smallvec![Span::new_at(b"O", 16, 1, 17)])),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 9, 1, 10),
+                inputs: Arity::Constant,
+                output: Ty::NullableCopy(Name::FullyQualified(smallvec![Span::new_at(
+                    b"O", 16, 1, 17
+                )])),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -733,17 +704,15 @@ mod tests {
 
     #[test]
     fn case_function_output_by_none_reference() {
-        let input  = Span::new(b"function &f() {}");
+        let input = Span::new(b"function &f() {}");
         let output = Ok((
             Span::new_at(b"", 16, 1, 17),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 10, 1, 11),
-                    inputs: Arity::Constant,
-                    output: Ty::Reference(None),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 10, 1, 11),
+                inputs: Arity::Constant,
+                output: Ty::Reference(None),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -752,17 +721,17 @@ mod tests {
 
     #[test]
     fn case_function_output_by_some_reference() {
-        let input  = Span::new(b"function &f(): int {}");
+        let input = Span::new(b"function &f(): int {}");
         let output = Ok((
             Span::new_at(b"", 21, 1, 22),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 10, 1, 11),
-                    inputs: Arity::Constant,
-                    output: Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(b"int", 15, 1, 16)]))),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 10, 1, 11),
+                inputs: Arity::Constant,
+                output: Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(
+                    b"int", 15, 1, 16
+                )]))),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -771,17 +740,17 @@ mod tests {
 
     #[test]
     fn case_function_output_by_nullable_reference() {
-        let input  = Span::new(b"function &f(): ?int {}");
+        let input = Span::new(b"function &f(): ?int {}");
         let output = Ok((
             Span::new_at(b"", 22, 1, 23),
-            Statement::Function(
-                Function {
-                    name  : Span::new_at(b"f", 10, 1, 11),
-                    inputs: Arity::Constant,
-                    output: Ty::NullableReference(Name::FullyQualified(smallvec![Span::new_at(b"int", 16, 1, 17)])),
-                    body  : vec![Statement::Return]
-                }
-            )
+            Statement::Function(Function {
+                name: Span::new_at(b"f", 10, 1, 11),
+                inputs: Arity::Constant,
+                output: Ty::NullableReference(Name::FullyQualified(smallvec![Span::new_at(
+                    b"int", 16, 1, 17
+                )])),
+                body: vec![Statement::Return],
+            }),
         ));
 
         assert_eq!(function(input), output);
@@ -792,22 +761,29 @@ mod tests {
     fn case_invalid_variadic_function_parameter_position() {
         let input = Span::new(b"function f(...$x, $y) {}");
 
-        assert_eq!(function(input),  Err(Error::Error(Context::Code(Span::new_at(b"(...$x, $y) {}", 10, 1, 11), ErrorKind::MapRes))));
-        assert_eq!(statement(input), Err(Error::Error(Context::Code(input, ErrorKind::Alt))));
+        assert_eq!(
+            function(input),
+            Err(Error::Error(Context::Code(
+                Span::new_at(b"(...$x, $y) {}", 10, 1, 11),
+                ErrorKind::MapRes
+            )))
+        );
+        assert_eq!(
+            statement(input),
+            Err(Error::Error(Context::Code(input, ErrorKind::Alt)))
+        );
     }
 
     #[test]
     fn case_parameters_one_by_none_copy() {
-        let input  = Span::new(b"($x)");
+        let input = Span::new(b"($x)");
         let output = Ok((
             Span::new_at(b"", 4, 1, 5),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::Copy(None),
-                    name : Variable(Span::new_at(b"x", 2, 1, 3)),
-                    value: None
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::Copy(None),
+                name: Variable(Span::new_at(b"x", 2, 1, 3)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -815,16 +791,18 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_some_copy() {
-        let input  = Span::new(b"(A\\B\\C $x)");
+        let input = Span::new(b"(A\\B\\C $x)");
         let output = Ok((
             Span::new_at(b"", 10, 1, 11),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::Copy(Some(Name::Qualified(smallvec![Span::new_at(b"A", 1, 1, 2), Span::new_at(b"B", 3, 1, 4), Span::new_at(b"C", 5, 1, 6)]))),
-                    name : Variable(Span::new_at(b"x", 8, 1, 9)),
-                    value: None
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::Copy(Some(Name::Qualified(smallvec![
+                    Span::new_at(b"A", 1, 1, 2),
+                    Span::new_at(b"B", 3, 1, 4),
+                    Span::new_at(b"C", 5, 1, 6)
+                ]))),
+                name: Variable(Span::new_at(b"x", 8, 1, 9)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -832,16 +810,18 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_nullable_copy() {
-        let input  = Span::new(b"(?A\\B\\C $x)");
+        let input = Span::new(b"(?A\\B\\C $x)");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::NullableCopy(Name::Qualified(smallvec![Span::new_at(b"A", 2, 1, 3), Span::new_at(b"B", 4, 1, 5), Span::new_at(b"C", 6, 1, 7)])),
-                    name : Variable(Span::new_at(b"x", 9, 1, 10)),
-                    value: None
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::NullableCopy(Name::Qualified(smallvec![
+                    Span::new_at(b"A", 2, 1, 3),
+                    Span::new_at(b"B", 4, 1, 5),
+                    Span::new_at(b"C", 6, 1, 7)
+                ])),
+                name: Variable(Span::new_at(b"x", 9, 1, 10)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -849,16 +829,14 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_none_reference() {
-        let input  = Span::new(b"(&$x)");
+        let input = Span::new(b"(&$x)");
         let output = Ok((
             Span::new_at(b"", 5, 1, 6),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::Reference(None),
-                    name : Variable(Span::new_at(b"x", 3, 1, 4)),
-                    value: None
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::Reference(None),
+                name: Variable(Span::new_at(b"x", 3, 1, 4)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -866,16 +844,16 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_some_reference() {
-        let input  = Span::new(b"(int &$x)");
+        let input = Span::new(b"(int &$x)");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(b"int", 1, 1, 2)]))),
-                    name : Variable(Span::new_at(b"x", 7, 1, 8)),
-                    value: None
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(
+                    b"int", 1, 1, 2
+                )]))),
+                name: Variable(Span::new_at(b"x", 7, 1, 8)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -883,16 +861,16 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_nullable_reference() {
-        let input  = Span::new(b"(?int &$x)");
+        let input = Span::new(b"(?int &$x)");
         let output = Ok((
             Span::new_at(b"", 10, 1, 11),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::NullableReference(Name::FullyQualified(smallvec![Span::new_at(b"int", 2, 1, 3)])),
-                    name : Variable(Span::new_at(b"x", 8, 1, 9)),
-                    value: None
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::NullableReference(Name::FullyQualified(smallvec![Span::new_at(
+                    b"int", 2, 1, 3
+                )])),
+                name: Variable(Span::new_at(b"x", 8, 1, 9)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -900,16 +878,14 @@ mod tests {
 
     #[test]
     fn case_parameters_one_variadic_by_none_copy() {
-        let input  = Span::new(b"(...$x)");
+        let input = Span::new(b"(...$x)");
         let output = Ok((
             Span::new_at(b"", 7, 1, 8),
-            Arity::Infinite(vec![
-                Parameter {
-                    ty   : Ty::Copy(None),
-                    name : Variable(Span::new_at(b"x", 5, 1, 6)),
-                    value: None
-                }
-            ])
+            Arity::Infinite(vec![Parameter {
+                ty: Ty::Copy(None),
+                name: Variable(Span::new_at(b"x", 5, 1, 6)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -917,16 +893,14 @@ mod tests {
 
     #[test]
     fn case_parameters_one_variadic_by_some_reference() {
-        let input  = Span::new(b"(I &...$x)");
+        let input = Span::new(b"(I &...$x)");
         let output = Ok((
             Span::new_at(b"", 10, 1, 11),
-            Arity::Infinite(vec![
-                Parameter {
-                    ty   : Ty::Reference(Some(Name::Unqualified(Span::new_at(b"I", 1, 1, 2)))),
-                    name : Variable(Span::new_at(b"x", 8, 1, 9)),
-                    value: None
-                }
-            ])
+            Arity::Infinite(vec![Parameter {
+                ty: Ty::Reference(Some(Name::Unqualified(Span::new_at(b"I", 1, 1, 2)))),
+                name: Variable(Span::new_at(b"x", 8, 1, 9)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -934,16 +908,17 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_none_copy_with_a_default_value() {
-        let input  = Span::new(b"($x = 42)");
+        let input = Span::new(b"($x = 42)");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::Copy(None),
-                    name : Variable(Span::new_at(b"x", 2, 1, 3)),
-                    value: Some(Expression::Literal(Literal::Integer(Token::new(42i64, Span::new_at(b"42", 6, 1, 7)))))
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::Copy(None),
+                name: Variable(Span::new_at(b"x", 2, 1, 3)),
+                value: Some(Expression::Literal(Literal::Integer(Token::new(
+                    42i64,
+                    Span::new_at(b"42", 6, 1, 7),
+                )))),
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -951,16 +926,19 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_some_copy_and_a_default_value() {
-        let input  = Span::new(b"(float $x = 4.2)");
+        let input = Span::new(b"(float $x = 4.2)");
         let output = Ok((
             Span::new_at(b"", 16, 1, 17),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(b"float", 1, 1, 2)]))),
-                    name : Variable(Span::new_at(b"x", 8, 1, 9)),
-                    value: Some(Expression::Literal(Literal::Real(Token::new(4.2f64, Span::new_at(b"4.2", 12, 1, 13)))))
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(
+                    b"float", 1, 1, 2
+                )]))),
+                name: Variable(Span::new_at(b"x", 8, 1, 9)),
+                value: Some(Expression::Literal(Literal::Real(Token::new(
+                    4.2f64,
+                    Span::new_at(b"4.2", 12, 1, 13),
+                )))),
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -968,16 +946,19 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_nullable_copy_and_a_default_value() {
-        let input  = Span::new(b"(?float $x = 4.2)");
+        let input = Span::new(b"(?float $x = 4.2)");
         let output = Ok((
             Span::new_at(b"", 17, 1, 18),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::NullableCopy(Name::FullyQualified(smallvec![Span::new_at(b"float", 2, 1, 3)])),
-                    name : Variable(Span::new_at(b"x", 9, 1, 10)),
-                    value: Some(Expression::Literal(Literal::Real(Token::new(4.2f64, Span::new_at(b"4.2", 13, 1, 14)))))
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::NullableCopy(Name::FullyQualified(smallvec![Span::new_at(
+                    b"float", 2, 1, 3
+                )])),
+                name: Variable(Span::new_at(b"x", 9, 1, 10)),
+                value: Some(Expression::Literal(Literal::Real(Token::new(
+                    4.2f64,
+                    Span::new_at(b"4.2", 13, 1, 14),
+                )))),
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -985,16 +966,17 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_none_reference_with_a_default_value() {
-        let input  = Span::new(b"(&$x = 'foo')");
+        let input = Span::new(b"(&$x = 'foo')");
         let output = Ok((
             Span::new_at(b"", 13, 1, 14),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::Reference(None),
-                    name : Variable(Span::new_at(b"x", 3, 1, 4)),
-                    value: Some(Expression::Literal(Literal::String(Token::new(Cow::from(&b"foo"[..]), Span::new_at(b"'foo'", 7, 1, 8)))))
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::Reference(None),
+                name: Variable(Span::new_at(b"x", 3, 1, 4)),
+                value: Some(Expression::Literal(Literal::String(Token::new(
+                    Cow::from(&b"foo"[..]),
+                    Span::new_at(b"'foo'", 7, 1, 8),
+                )))),
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1002,23 +984,22 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_some_reference_and_a_default_value() {
-        let input  = Span::new(b"(array &$x = ['foo' => true])");
+        let input = Span::new(b"(array &$x = ['foo' => true])");
         let output = Ok((
             Span::new_at(b"", 29, 1, 30),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(b"array", 1, 1, 2)]))),
-                    name : Variable(Span::new_at(b"x", 9, 1, 10)),
-                    value: Some(
-                        Expression::Array(vec![
-                            (
-                                Some(Expression::Literal(Literal::String(Token::new(Cow::from(&b"foo"[..]), Span::new_at(b"'foo'", 14, 1, 15))))),
-                                Expression::Name(Name::Unqualified(Span::new_at(b"true", 23, 1, 24)))
-                            )
-                        ])
-                    )
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(
+                    b"array", 1, 1, 2
+                )]))),
+                name: Variable(Span::new_at(b"x", 9, 1, 10)),
+                value: Some(Expression::Array(vec![(
+                    Some(Expression::Literal(Literal::String(Token::new(
+                        Cow::from(&b"foo"[..]),
+                        Span::new_at(b"'foo'", 14, 1, 15),
+                    )))),
+                    Expression::Name(Name::Unqualified(Span::new_at(b"true", 23, 1, 24))),
+                )])),
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1026,16 +1007,19 @@ mod tests {
 
     #[test]
     fn case_parameters_one_by_nullable_reference_with_a_default_value() {
-        let input  = Span::new(b"(?string &$x = 'foo')");
+        let input = Span::new(b"(?string &$x = 'foo')");
         let output = Ok((
             Span::new_at(b"", 21, 1, 22),
-            Arity::Finite(vec![
-                Parameter {
-                    ty   : Ty::NullableReference(Name::FullyQualified(smallvec![Span::new_at(b"string", 2, 1, 3)])),
-                    name : Variable(Span::new_at(b"x", 11, 1, 12)),
-                    value: Some(Expression::Literal(Literal::String(Token::new(Cow::from(&b"foo"[..]), Span::new_at(b"'foo'", 15, 1, 16)))))
-                }
-            ])
+            Arity::Finite(vec![Parameter {
+                ty: Ty::NullableReference(Name::FullyQualified(smallvec![Span::new_at(
+                    b"string", 2, 1, 3
+                )])),
+                name: Variable(Span::new_at(b"x", 11, 1, 12)),
+                value: Some(Expression::Literal(Literal::String(Token::new(
+                    Cow::from(&b"foo"[..]),
+                    Span::new_at(b"'foo'", 15, 1, 16),
+                )))),
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1043,16 +1027,14 @@ mod tests {
 
     #[test]
     fn case_parameters_variadic_arity_one_by_none_copy() {
-        let input  = Span::new(b"(...$x)");
+        let input = Span::new(b"(...$x)");
         let output = Ok((
             Span::new_at(b"", 7, 1, 8),
-            Arity::Infinite(vec![
-                Parameter {
-                    ty   : Ty::Copy(None),
-                    name : Variable(Span::new_at(b"x", 5, 1, 6)),
-                    value: None
-                }
-            ])
+            Arity::Infinite(vec![Parameter {
+                ty: Ty::Copy(None),
+                name: Variable(Span::new_at(b"x", 5, 1, 6)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1060,16 +1042,18 @@ mod tests {
 
     #[test]
     fn case_parameters_variadic_arity_one_by_some_copy() {
-        let input  = Span::new(b"(A\\B\\C ...$x)");
+        let input = Span::new(b"(A\\B\\C ...$x)");
         let output = Ok((
             Span::new_at(b"", 13, 1, 14),
-            Arity::Infinite(vec![
-                Parameter {
-                    ty   : Ty::Copy(Some(Name::Qualified(smallvec![Span::new_at(b"A", 1, 1, 2), Span::new_at(b"B", 3, 1, 4), Span::new_at(b"C", 5, 1, 6)]))),
-                    name : Variable(Span::new_at(b"x", 11, 1, 12)),
-                    value: None
-                }
-            ])
+            Arity::Infinite(vec![Parameter {
+                ty: Ty::Copy(Some(Name::Qualified(smallvec![
+                    Span::new_at(b"A", 1, 1, 2),
+                    Span::new_at(b"B", 3, 1, 4),
+                    Span::new_at(b"C", 5, 1, 6)
+                ]))),
+                name: Variable(Span::new_at(b"x", 11, 1, 12)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1077,16 +1061,18 @@ mod tests {
 
     #[test]
     fn case_parameters_variadic_arity_one_by_nullable_copy() {
-        let input  = Span::new(b"(?A\\B\\C ...$x)");
+        let input = Span::new(b"(?A\\B\\C ...$x)");
         let output = Ok((
             Span::new_at(b"", 14, 1, 15),
-            Arity::Infinite(vec![
-                Parameter {
-                    ty   : Ty::NullableCopy(Name::Qualified(smallvec![Span::new_at(b"A", 2, 1, 3), Span::new_at(b"B", 4, 1, 5), Span::new_at(b"C", 6, 1, 7)])),
-                    name : Variable(Span::new_at(b"x", 12, 1, 13)),
-                    value: None
-                }
-            ])
+            Arity::Infinite(vec![Parameter {
+                ty: Ty::NullableCopy(Name::Qualified(smallvec![
+                    Span::new_at(b"A", 2, 1, 3),
+                    Span::new_at(b"B", 4, 1, 5),
+                    Span::new_at(b"C", 6, 1, 7)
+                ])),
+                name: Variable(Span::new_at(b"x", 12, 1, 13)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1094,16 +1080,14 @@ mod tests {
 
     #[test]
     fn case_parameters_variadic_arity_one_by_none_reference() {
-        let input  = Span::new(b"(&...$x)");
+        let input = Span::new(b"(&...$x)");
         let output = Ok((
             Span::new_at(b"", 8, 1, 9),
-            Arity::Infinite(vec![
-                Parameter {
-                    ty   : Ty::Reference(None),
-                    name : Variable(Span::new_at(b"x", 6, 1, 7)),
-                    value: None
-                }
-            ])
+            Arity::Infinite(vec![Parameter {
+                ty: Ty::Reference(None),
+                name: Variable(Span::new_at(b"x", 6, 1, 7)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1111,16 +1095,16 @@ mod tests {
 
     #[test]
     fn case_parameters_variadic_arity_one_by_some_reference() {
-        let input  = Span::new(b"(int &...$x)");
+        let input = Span::new(b"(int &...$x)");
         let output = Ok((
             Span::new_at(b"", 12, 1, 13),
-            Arity::Infinite(vec![
-                Parameter {
-                    ty   : Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(b"int", 1, 1, 2)]))),
-                    name : Variable(Span::new_at(b"x", 10, 1, 11)),
-                    value: None
-                }
-            ])
+            Arity::Infinite(vec![Parameter {
+                ty: Ty::Reference(Some(Name::FullyQualified(smallvec![Span::new_at(
+                    b"int", 1, 1, 2
+                )]))),
+                name: Variable(Span::new_at(b"x", 10, 1, 11)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1128,16 +1112,16 @@ mod tests {
 
     #[test]
     fn case_parameters_variadic_arity_one_by_nullable_reference() {
-        let input  = Span::new(b"(?int &...$x)");
+        let input = Span::new(b"(?int &...$x)");
         let output = Ok((
             Span::new_at(b"", 13, 1, 14),
-            Arity::Infinite(vec![
-                Parameter {
-                    ty   : Ty::NullableReference(Name::FullyQualified(smallvec![Span::new_at(b"int", 2, 1, 3)])),
-                    name : Variable(Span::new_at(b"x", 11, 1, 12)),
-                    value: None
-                }
-            ])
+            Arity::Infinite(vec![Parameter {
+                ty: Ty::NullableReference(Name::FullyQualified(smallvec![Span::new_at(
+                    b"int", 2, 1, 3
+                )])),
+                name: Variable(Span::new_at(b"x", 11, 1, 12)),
+                value: None,
+            }]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1145,26 +1129,31 @@ mod tests {
 
     #[test]
     fn case_parameters_many() {
-        let input  = Span::new(b"(&$x, int $y, I\\J $z)");
+        let input = Span::new(b"(&$x, int $y, I\\J $z)");
         let output = Ok((
             Span::new_at(b"", 21, 1, 22),
             Arity::Finite(vec![
                 Parameter {
-                    ty   : Ty::Reference(None),
-                    name : Variable(Span::new_at(b"x", 3, 1, 4)),
-                    value: None
+                    ty: Ty::Reference(None),
+                    name: Variable(Span::new_at(b"x", 3, 1, 4)),
+                    value: None,
                 },
                 Parameter {
-                    ty   : Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(b"int", 6, 1, 7)]))),
-                    name : Variable(Span::new_at(b"y", 11, 1, 12)),
-                    value: None
+                    ty: Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(
+                        b"int", 6, 1, 7
+                    )]))),
+                    name: Variable(Span::new_at(b"y", 11, 1, 12)),
+                    value: None,
                 },
                 Parameter {
-                    ty   : Ty::Copy(Some(Name::Qualified(smallvec![Span::new_at(b"I", 14, 1, 15), Span::new_at(b"J", 16, 1, 17)]))),
-                    name : Variable(Span::new_at(b"z", 19, 1, 20)),
-                    value: None
-                }
-            ])
+                    ty: Ty::Copy(Some(Name::Qualified(smallvec![
+                        Span::new_at(b"I", 14, 1, 15),
+                        Span::new_at(b"J", 16, 1, 17)
+                    ]))),
+                    name: Variable(Span::new_at(b"z", 19, 1, 20)),
+                    value: None,
+                },
+            ]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1172,26 +1161,31 @@ mod tests {
 
     #[test]
     fn case_parameters_many_variadic() {
-        let input  = Span::new(b"(&$x, int $y, I\\J ...$z)");
+        let input = Span::new(b"(&$x, int $y, I\\J ...$z)");
         let output = Ok((
             Span::new_at(b"", 24, 1, 25),
             Arity::Infinite(vec![
                 Parameter {
-                    ty   : Ty::Reference(None),
-                    name : Variable(Span::new_at(b"x", 3, 1, 4)),
-                    value: None
+                    ty: Ty::Reference(None),
+                    name: Variable(Span::new_at(b"x", 3, 1, 4)),
+                    value: None,
                 },
                 Parameter {
-                    ty   : Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(b"int", 6, 1, 7)]))),
-                    name : Variable(Span::new_at(b"y", 11, 1, 12)),
-                    value: None
+                    ty: Ty::Copy(Some(Name::FullyQualified(smallvec![Span::new_at(
+                        b"int", 6, 1, 7
+                    )]))),
+                    name: Variable(Span::new_at(b"y", 11, 1, 12)),
+                    value: None,
                 },
                 Parameter {
-                    ty   : Ty::Copy(Some(Name::Qualified(smallvec![Span::new_at(b"I", 14, 1, 15), Span::new_at(b"J", 16, 1, 17)]))),
-                    name : Variable(Span::new_at(b"z", 22, 1, 23)),
-                    value: None
-                }
-            ])
+                    ty: Ty::Copy(Some(Name::Qualified(smallvec![
+                        Span::new_at(b"I", 14, 1, 15),
+                        Span::new_at(b"J", 16, 1, 17)
+                    ]))),
+                    name: Variable(Span::new_at(b"z", 22, 1, 23)),
+                    value: None,
+                },
+            ]),
         ));
 
         assert_eq!(parameters(input), output);
@@ -1199,7 +1193,7 @@ mod tests {
 
     #[test]
     fn case_invalid_parameters_variadic_position() {
-        let input  = Span::new(b"(...$x, $y)");
+        let input = Span::new(b"(...$x, $y)");
         let output = Err(Error::Error(Context::Code(input, ErrorKind::MapRes)));
 
         assert_eq!(parameters(input), output);
@@ -1207,7 +1201,7 @@ mod tests {
 
     #[test]
     fn case_invalid_parameters_two_not_unique() {
-        let input  = Span::new(b"($x, $x)");
+        let input = Span::new(b"($x, $x)");
         let output = Err(Error::Error(Context::Code(input, ErrorKind::MapRes)));
 
         assert_eq!(parameters(input), output);
@@ -1215,7 +1209,7 @@ mod tests {
 
     #[test]
     fn case_invalid_parameters_many_not_unique() {
-        let input  = Span::new(b"($x, $y, $x, $z)");
+        let input = Span::new(b"($x, $y, $x, $z)");
         let output = Err(Error::Error(Context::Code(input, ErrorKind::MapRes)));
 
         assert_eq!(parameters(input), output);
@@ -1225,15 +1219,15 @@ mod tests {
         ($test:ident: $name:expr) => {
             #[test]
             fn $test() {
-                let input  = Span::new($name);
+                let input = Span::new($name);
                 let output = Ok((
                     Span::new_at(b"", $name.len(), 1, $name.len() as u32 + 1),
-                    Name::FullyQualified(smallvec![input])
+                    Name::FullyQualified(smallvec![input]),
                 ));
 
                 assert_eq!(native_type(input), output);
             }
-        }
+        };
     }
 
     test_native_type!(case_native_type_array:    b"array");

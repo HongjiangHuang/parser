@@ -71,28 +71,24 @@ use super::tokens::Span;
 pub fn root(input: Span) -> Expression {
     match expressions::expression(input) {
         Ok((_, ast)) => ast,
-        _ => panic!("Youhouuu")
+        _ => panic!("Youhouuu"),
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use super::super::ast::{Expression, Literal};
+    use super::super::tokens::{Span, Token};
     use super::root;
-    use super::super::ast::{
-        Expression,
-        Literal
-    };
-    use super::super::tokens::{
-        Span,
-        Token
-    };
+    use std::borrow::Cow;
 
     #[test]
     fn case_root() {
-        let input  = Span::new(b"'Hello, World!'");
-        let output = Expression::Literal(Literal::String(Token::new(Cow::from(&b"Hello, World!"[..]), input)));
+        let input = Span::new(b"'Hello, World!'");
+        let output = Expression::Literal(Literal::String(Token::new(
+            Cow::from(&b"Hello, World!"[..]),
+            input,
+        )));
 
         assert_eq!(root(input), output);
     }

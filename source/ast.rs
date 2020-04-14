@@ -31,12 +31,9 @@
 
 //! Structures that will constitute the Abstract Syntax Tree.
 
+use super::tokens::{Span, Token};
 use smallvec::SmallVec;
 use std::borrow::Cow;
-use super::tokens::{
-    Span,
-    Token
-};
 
 /// A literal represents a fixed value, aka an atom.
 #[derive(Debug, PartialEq)]
@@ -156,7 +153,7 @@ pub enum Literal<'a> {
     /// );
     /// # }
     /// ```
-    String(Token<'a, Cow<'a, [u8]>>)
+    String(Token<'a, Cow<'a, [u8]>>),
 }
 
 /// A variable.
@@ -333,7 +330,7 @@ pub enum Name<'a> {
     /// # }
     /// ```
     /// Note that the leading `\` part is not present.
-    FullyQualified(SmallVec<[Span<'a>; 5]>)
+    FullyQualified(SmallVec<[Span<'a>; 5]>),
 }
 
 /// An expression.
@@ -920,7 +917,7 @@ pub enum Expression<'a> {
     /// );
     /// # }
     /// ```
-    Variable(Variable<'a>)
+    Variable(Variable<'a>),
 }
 
 /// A dereferencable expression.
@@ -1075,7 +1072,7 @@ pub enum DereferencableExpression<'a> {
     /// );
     /// # }
     /// ```
-    String(Literal<'a>)
+    String(Literal<'a>),
 }
 
 /// A type declaration.
@@ -1316,7 +1313,7 @@ pub enum Ty<'a> {
     /// );
     /// # }
     /// ```
-    NullableReference(Name<'a>)
+    NullableReference(Name<'a>),
 }
 
 /// A parameter, aka input, of a function.
@@ -1375,7 +1372,7 @@ pub struct Parameter<'a> {
     pub name: Variable<'a>,
 
     /// Default value of the parameter.
-    pub value: Option<Expression<'a>>
+    pub value: Option<Expression<'a>>,
 }
 
 /// Arity of a function.
@@ -1483,7 +1480,7 @@ pub enum Arity<'a> {
     /// );
     /// # }
     /// ```
-    Infinite(Vec<Parameter<'a>>)
+    Infinite(Vec<Parameter<'a>>),
 }
 
 /// A function declaration.
@@ -1541,7 +1538,7 @@ pub struct Function<'a> {
     pub output: Ty<'a>,
 
     /// Body of the function, i.e. a set of statements.
-    pub body: Vec<Statement<'a>>
+    pub body: Vec<Statement<'a>>,
 }
 
 /// An anonymous function.
@@ -1618,7 +1615,7 @@ pub struct AnonymousFunction<'a> {
     pub enclosing_scope: Option<Vec<Expression<'a>>>,
 
     /// Body of the anonymous function, i.e. a set of statements.
-    pub body: Vec<Statement<'a>>
+    pub body: Vec<Statement<'a>>,
 }
 
 /// A n-ary operation.
@@ -1633,7 +1630,7 @@ pub enum NAryOperation<'a> {
         operator: UnaryOperator,
 
         /// The operand (`x`).
-        operand: Box<NAryOperation<'a>>
+        operand: Box<NAryOperation<'a>>,
     },
 
     /// An operation with one operator and two operands: `x op y`.
@@ -1645,7 +1642,7 @@ pub enum NAryOperation<'a> {
         left_operand: Box<NAryOperation<'a>>,
 
         /// The right operand (`y`).
-        right_operand: Box<NAryOperation<'a>>
+        right_operand: Box<NAryOperation<'a>>,
     },
 
     /// An operation with one operator and three operands: `x op y op z`.
@@ -1660,8 +1657,8 @@ pub enum NAryOperation<'a> {
         middle_operand: Box<Expression<'a>>,
 
         /// The right operand (`y`).
-        right_operand: Box<NAryOperation<'a>>
-    }
+        right_operand: Box<NAryOperation<'a>>,
+    },
 }
 
 /// A unary operator.
@@ -1689,7 +1686,7 @@ pub enum UnaryOperator {
     Negate,
 
     /// `+$x`.
-    Plus
+    Plus,
 }
 
 /// A binary operator.
@@ -1768,14 +1765,14 @@ pub enum BinaryOperator {
     NotIdentical,
 
     /// `$x + $y`.
-    Plus
+    Plus,
 }
 
 /// A ternary operator.
 #[derive(Debug, PartialEq)]
 pub enum TernaryOperator {
     /// `$x ? $y : $z`.
-    Conditional
+    Conditional,
 }
 
 /// A cast type.
@@ -1805,7 +1802,7 @@ pub enum CastType {
     Object,
 
     /// `(string)`.
-    String
+    String,
 }
 
 /// A statement.
@@ -1815,7 +1812,7 @@ pub enum Statement<'a> {
     Function(Function<'a>),
 
     /// A return.
-    Return
+    Return,
 }
 
 /// A declaration scope.
@@ -1825,7 +1822,7 @@ pub enum DeclarationScope {
     Dynamic,
 
     /// A static scope (when declared with the `static` keyword).
-    Static
+    Static,
 }
 
 /// A relative scope designates the class with relation to the current
@@ -1843,7 +1840,7 @@ pub enum RelativeScope {
     /// to the class inheritance context in whcih the method is
     /// called. This allows late static binding, when class resolution
     /// depends on the dynamic call context.
-    ToStatic
+    ToStatic,
 }
 
 /// A scope resolution qualifier.
@@ -1929,14 +1926,13 @@ pub enum ScopeResolver<'a> {
     /// );
     /// # }
     /// ```
-    ByExpression(DereferencableExpression<'a>)
+    ByExpression(DereferencableExpression<'a>),
 }
-
 
 #[cfg(test)]
 mod tests {
-    use super::Variable;
     use super::super::tokens::Span;
+    use super::Variable;
 
     #[test]
     fn case_variable_equal() {

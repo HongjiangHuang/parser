@@ -65,17 +65,13 @@ named_attr!(
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::internal::{
-        Context,
-        Error,
-        ErrorKind
-    };
+    use super::super::super::internal::{Context, Error, ErrorKind};
     use super::super::super::tokens::Span;
     use super::whitespace;
 
     #[test]
     fn case_whitespace_space() {
-        let input  = Span::new(b"   ");
+        let input = Span::new(b"   ");
         let output = Ok((Span::new_at(b"", 3, 1, 4), input));
 
         assert_eq!(whitespace(input), output);
@@ -83,7 +79,7 @@ mod tests {
 
     #[test]
     fn case_whitespace_horizontal_tabulation() {
-        let input  = Span::new(b"\t\t\t");
+        let input = Span::new(b"\t\t\t");
         let output = Ok((Span::new_at(b"", 3, 1, 4), input));
 
         assert_eq!(whitespace(input), output);
@@ -91,7 +87,7 @@ mod tests {
 
     #[test]
     fn case_whitespace_carriage_return_line_feed() {
-        let input  = Span::new(b"\r\n\r\n\r\n");
+        let input = Span::new(b"\r\n\r\n\r\n");
         let output = Ok((Span::new_at(b"", 6, 4, 1), input));
 
         assert_eq!(whitespace(input), output);
@@ -99,7 +95,7 @@ mod tests {
 
     #[test]
     fn case_whitespace_carriage_return() {
-        let input  = Span::new(b"\r\r\r");
+        let input = Span::new(b"\r\r\r");
         let output = Ok((Span::new_at(b"", 3, 1, 4), input));
 
         assert_eq!(whitespace(input), output);
@@ -107,7 +103,7 @@ mod tests {
 
     #[test]
     fn case_whitespace_line_feed() {
-        let input  = Span::new(b"\n\n\n");
+        let input = Span::new(b"\n\n\n");
         let output = Ok((Span::new_at(b"", 3, 4, 1), input));
 
         assert_eq!(whitespace(input), output);
@@ -115,7 +111,7 @@ mod tests {
 
     #[test]
     fn case_whitespace_mixed() {
-        let input  = Span::new(b"\n \n \r\t  \t\r\n\t \t\t");
+        let input = Span::new(b"\n \n \r\t  \t\r\n\t \t\t");
         let output = Ok((Span::new_at(b"", 15, 4, 5), input));
 
         assert_eq!(whitespace(input), output);
@@ -123,15 +119,18 @@ mod tests {
 
     #[test]
     fn case_whitespace_with_a_tail() {
-        let input  = Span::new(b"\n \n \r\t  \t\r\n\t \t\tabc ");
-        let output = Ok((Span::new_at(b"abc ", 15, 4, 5), Span::new(b"\n \n \r\t  \t\r\n\t \t\t")));
+        let input = Span::new(b"\n \n \r\t  \t\r\n\t \t\tabc ");
+        let output = Ok((
+            Span::new_at(b"abc ", 15, 4, 5),
+            Span::new(b"\n \n \r\t  \t\r\n\t \t\t"),
+        ));
 
         assert_eq!(whitespace(input), output);
     }
 
     #[test]
     fn case_whitespace_too_short() {
-        let input  = Span::new(b"");
+        let input = Span::new(b"");
         let output = Ok((Span::new_at(b"", 0, 1, 1), input));
 
         assert_eq!(whitespace(input), output);
@@ -139,7 +138,7 @@ mod tests {
 
     #[test]
     fn case_invalid_whitespace_not_a_valid_whitespace() {
-        let input  = Span::new(b"\xa0 ");
+        let input = Span::new(b"\xa0 ");
         let output = Err(Error::Error(Context::Code(input, ErrorKind::IsA)));
 
         assert_eq!(whitespace(input), output);
@@ -147,7 +146,7 @@ mod tests {
 
     #[test]
     fn case_invalid_whitespace_not_a_valid_character() {
-        let input  = Span::new(b"abc\n \t");
+        let input = Span::new(b"abc\n \t");
         let output = Err(Error::Error(Context::Code(input, ErrorKind::IsA)));
 
         assert_eq!(whitespace(input), output);

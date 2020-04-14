@@ -41,37 +41,16 @@
 //! lexeme, like the offset of the lexeme in the input, the line, and
 //! the column. An analysed lexeme is represented by the `Token` structure.
 
+use super::internal::{Input, InputElement};
 use bytecount;
 use memchr;
 use nom::{
-    AtEof,
-    Compare,
-    CompareResult,
-    FindSubstring,
-    InputIter,
-    InputLength,
-    Offset,
-    Slice,
-    InputTake,
-    InputTakeAtPosition,
-    IResult,
-    Err,
-    Needed,
-    Context,
-    ErrorKind,
-};
-use super::internal::{
-    Input,
-    InputElement
+    AtEof, Compare, CompareResult, Context, Err, ErrorKind, FindSubstring, IResult, InputIter,
+    InputLength, InputTake, InputTakeAtPosition, Needed, Offset, Slice,
 };
 use rules::whitespaces::whitespace;
 use std::iter::Enumerate;
-use std::ops::{
-    Range,
-    RangeFrom,
-    RangeFull,
-    RangeTo
-};
+use std::ops::{Range, RangeFrom, RangeFull, RangeTo};
 use std::slice::Iter;
 
 /// Helper to declare a token.
@@ -783,7 +762,7 @@ pub struct Token<'a, T> {
     pub value: T,
 
     /// The attached span of the value.
-    pub span: Span<'a>
+    pub span: Span<'a>,
 }
 
 impl<'a, T> Token<'a, T> {
@@ -805,7 +784,7 @@ impl<'a, T> Token<'a, T> {
     pub fn new(value: T, span: Span<'a>) -> Self {
         Token {
             value: value,
-            span : span
+            span: span,
         }
     }
 }
@@ -828,7 +807,7 @@ pub struct Span<'a> {
     pub column: u32,
 
     /// The slice that is spanned.
-    slice: Input<'a>
+    slice: Input<'a>,
 }
 
 impl<'a> Span<'a> {
@@ -855,9 +834,9 @@ impl<'a> Span<'a> {
     pub fn new(input: Input<'a>) -> Self {
         Span {
             offset: 0,
-            line  : 1,
+            line: 1,
             column: 1,
-            slice : input
+            slice: input,
         }
     }
 
@@ -881,9 +860,9 @@ impl<'a> Span<'a> {
     pub fn new_at(input: Input<'a>, offset: usize, line: u32, column: u32) -> Self {
         Span {
             offset: offset,
-            line  : line,
+            line: line,
             column: column,
-            slice : input
+            slice: input,
         }
     }
 
@@ -962,13 +941,13 @@ impl<'a> AtEof for Span<'a> {
 /// This trait aims at iterating over the input.
 impl<'a> InputIter for Span<'a> {
     /// Type of an element of the span' slice.
-    type Item     = &'a InputElement;
+    type Item = &'a InputElement;
 
     /// Type of a raw element of the span' slice.
-    type RawItem  = InputElement;
+    type RawItem = InputElement;
 
     /// Type of the enumerator iterator.
-    type Iter     = Enumerate<Iter<'a, Self::RawItem>>;
+    type Iter = Enumerate<Iter<'a, Self::RawItem>>;
 
     /// Type of the iterator.
     type IterElem = Iter<'a, Self::RawItem>;
@@ -1050,7 +1029,9 @@ impl<'a> InputIter for Span<'a> {
     /// # }
     /// ```
     fn position<P>(&self, predicate: P) -> Option<usize>
-        where P: Fn(Self::RawItem) -> bool {
+    where
+        P: Fn(Self::RawItem) -> bool,
+    {
         self.slice.iter().position(|x| predicate(*x))
     }
 
@@ -1138,23 +1119,23 @@ impl<'a, 'b> FindSubstring<Input<'b>> for Span<'a> {
         } else if substring_length == 1 {
             memchr::memchr(substring[0], self.slice)
         } else {
-            let max          = self.slice.len() - substring_length;
-            let mut offset   = 0;
+            let max = self.slice.len() - substring_length;
+            let mut offset = 0;
             let mut haystack = self.slice;
 
             while let Some(position) = memchr::memchr(substring[0], haystack) {
                 offset += position;
 
                 if offset > max {
-                    return None
+                    return None;
                 }
 
                 if &haystack[position..position + substring_length] == substring {
                     return Some(offset);
                 }
 
-                haystack  = &haystack[position + 1..];
-                offset   += 1;
+                haystack = &haystack[position + 1..];
+                offset += 1;
             }
 
             None
@@ -1192,7 +1173,7 @@ impl<'a, 'b> Compare<Input<'b>> for Span<'a> {
 }
 
 macro_rules! impl_slice_for_range {
-    ($range:ty) => (
+    ($range:ty) => {
         /// Implement a range from nom to be able to use the `Span`
         /// structure as an input of the parsers.
         ///
@@ -1229,39 +1210,36 @@ macro_rules! impl_slice_for_range {
                 if next_offset == 0 {
                     return Span {
                         offset: self.offset,
-                        line  : self.line,
+                        line: self.line,
                         column: self.column,
-                        slice : next_slice
+                        slice: next_slice,
                     };
                 }
 
-                let consumed           = &self.slice[..next_offset];
+                let consumed = &self.slice[..next_offset];
                 let number_of_newlines = bytecount::count(consumed, b'\n') as u32;
 
-                let next_column =
-                    if number_of_newlines == 0 {
-                        self.column + next_offset as u32
-                    } else {
-                        match memchr::memrchr(b'\n', consumed) {
-                            Some(last_newline_position) => {
-                                (next_offset - last_newline_position) as u32
-                            },
+                let next_column = if number_of_newlines == 0 {
+                    self.column + next_offset as u32
+                } else {
+                    match memchr::memrchr(b'\n', consumed) {
+                        Some(last_newline_position) => (next_offset - last_newline_position) as u32,
 
-                            None => {
-                                unreachable!();
-                            }
+                        None => {
+                            unreachable!();
                         }
-                    };
+                    }
+                };
 
                 Span {
                     offset: self.offset + next_offset,
-                    line  : self.line + number_of_newlines,
+                    line: self.line + number_of_newlines,
                     column: next_column,
-                    slice : next_slice
+                    slice: next_slice,
                 }
             }
         }
-    )
+    };
 }
 
 impl_slice_for_range!(Range<usize>);
@@ -1269,37 +1247,28 @@ impl_slice_for_range!(RangeTo<usize>);
 impl_slice_for_range!(RangeFrom<usize>);
 impl_slice_for_range!(RangeFull);
 
-
 #[cfg(test)]
 mod tests {
-    use std::str;
-    use super::Span;
+    use super::super::internal::{Context, Error, ErrorKind};
     use super::keywords;
-    use super::super::internal::{
-        Context,
-        Error,
-        ErrorKind
-    };
-    use nom::{
-        Compare,
-        CompareResult,
-        FindSubstring,
-        InputIter,
-        InputLength,
-        Slice
-    };
+    use super::Span;
+    use nom::{Compare, CompareResult, FindSubstring, InputIter, InputLength, Slice};
+    use std::str;
 
     macro_rules! test_keyword {
-        ($test_case_name:ident: ($string:expr, $expect:expr)) => (
+        ($test_case_name:ident: ($string:expr, $expect:expr)) => {
             #[test]
             fn $test_case_name() {
-                let output     = Ok((Span::new_at(b"", $string.len(), 1, $string.len() as u32 + 1), Span::new($expect)));
+                let output = Ok((
+                    Span::new_at(b"", $string.len(), 1, $string.len() as u32 + 1),
+                    Span::new($expect),
+                ));
                 let uppercased = str::from_utf8($string).unwrap().to_ascii_uppercase();
 
                 assert_eq!(keywords(Span::new($string)), output);
                 assert_eq!(keywords(Span::new(uppercased.as_bytes())), output);
             }
-        )
+        };
     }
 
     test_keyword!(case_keyword_abstract:     (b"abstract", super::ABSTRACT));
@@ -1377,9 +1346,15 @@ mod tests {
 
     #[test]
     fn case_keyword_yield_from_with_many_whitespaces() {
-        let input      = b"yield  \t \t \n \n \r \r  fromabc";
-        let output1    = Ok((Span::new_at(b"abc", 24, 3, 11), Span::new(super::YIELD_FROM)));
-        let output2    = Ok((Span::new_at(b"ABC", 24, 3, 11), Span::new(super::YIELD_FROM)));
+        let input = b"yield  \t \t \n \n \r \r  fromabc";
+        let output1 = Ok((
+            Span::new_at(b"abc", 24, 3, 11),
+            Span::new(super::YIELD_FROM),
+        ));
+        let output2 = Ok((
+            Span::new_at(b"ABC", 24, 3, 11),
+            Span::new(super::YIELD_FROM),
+        ));
         let uppercased = str::from_utf8(input).unwrap().to_ascii_uppercase();
 
         assert_eq!(keywords(Span::new(input)), output1);
@@ -1390,17 +1365,20 @@ mod tests {
     fn case_invalid_keyword() {
         let input = Span::new(b"hello");
 
-        assert_eq!(keywords(input), Err(Error::Error(Context::Code(input, ErrorKind::Alt))));
+        assert_eq!(
+            keywords(input),
+            Err(Error::Error(Context::Code(input, ErrorKind::Alt)))
+        );
     }
 
     #[test]
     fn case_span_new() {
-        let input  = &b"foobar"[..];
+        let input = &b"foobar"[..];
         let output = Span {
             offset: 0,
-            line  : 1,
+            line: 1,
             column: 1,
-            slice : input
+            slice: input,
         };
 
         assert_eq!(Span::new(input), output);
@@ -1408,12 +1386,12 @@ mod tests {
 
     #[test]
     fn case_span_new_at() {
-        let input  = &b"foobar"[..];
+        let input = &b"foobar"[..];
         let output = Span {
             offset: 1,
-            line  : 2,
+            line: 2,
             column: 3,
-            slice : input
+            slice: input,
         };
 
         assert_eq!(Span::new_at(input, 1, 2, 3), output);
@@ -1423,9 +1401,9 @@ mod tests {
     fn case_span_empty() {
         let output = Span {
             offset: 0,
-            line  : 1,
+            line: 1,
             column: 1,
-            slice : &b""[..]
+            slice: &b""[..],
         };
 
         assert_eq!(Span::empty(), output);
@@ -1433,7 +1411,7 @@ mod tests {
 
     #[test]
     fn case_span_as_slice() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = &b"foobar"[..];
 
         assert_eq!(input.as_slice(), output);
@@ -1441,7 +1419,7 @@ mod tests {
 
     #[test]
     fn case_span_from() {
-        let input  = &b"foobar"[..];
+        let input = &b"foobar"[..];
         let output = Span::new(input);
 
         assert_eq!(Span::new(input), output);
@@ -1449,7 +1427,7 @@ mod tests {
 
     #[test]
     fn case_span_length_zero() {
-        let input  = Span::new(b"");
+        let input = Span::new(b"");
         let output = 0;
 
         assert_eq!(input.input_len(), output);
@@ -1457,7 +1435,7 @@ mod tests {
 
     #[test]
     fn case_span_length_many() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = 6;
 
         assert_eq!(input.input_len(), output);
@@ -1465,7 +1443,7 @@ mod tests {
 
     #[test]
     fn case_span_empty_iterator_with_indices() {
-        let input  = Span::new(b"");
+        let input = Span::new(b"");
         let output = 0;
 
         assert_eq!(input.iter_indices().len(), output);
@@ -1473,14 +1451,14 @@ mod tests {
 
     #[test]
     fn case_span_iterator_with_indices() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = vec![
             (0, b'f'),
             (1, b'o'),
             (2, b'o'),
             (3, b'b'),
             (4, b'a'),
-            (5, b'r')
+            (5, b'r'),
         ];
 
         let mut accumulator = Vec::new();
@@ -1494,7 +1472,7 @@ mod tests {
 
     #[test]
     fn case_span_empty_iterator() {
-        let input  = Span::new(b"");
+        let input = Span::new(b"");
         let output = 0;
 
         assert_eq!(input.iter_elements().len(), output);
@@ -1502,7 +1480,7 @@ mod tests {
 
     #[test]
     fn case_span_iterator_with_elements() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = vec![b'f', b'o', b'o', b'b', b'a', b'r'];
 
         let mut accumulator = Vec::new();
@@ -1516,7 +1494,7 @@ mod tests {
 
     #[test]
     fn case_span_empty_position() {
-        let input  = Span::new(b"");
+        let input = Span::new(b"");
         let output = None;
 
         assert_eq!(input.position(|x| x == b'a'), output);
@@ -1524,7 +1502,7 @@ mod tests {
 
     #[test]
     fn case_span_position() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = Some(4);
 
         assert_eq!(input.position(|x| x == b'a'), output);
@@ -1532,7 +1510,7 @@ mod tests {
 
     #[test]
     fn case_span_position_not_found() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = None;
 
         assert_eq!(input.position(|x| x == b'z'), output);
@@ -1540,7 +1518,7 @@ mod tests {
 
     #[test]
     fn case_span_empty_index() {
-        let input  = Span::new(b"");
+        let input = Span::new(b"");
         let output = None;
 
         assert_eq!(input.slice_index(2), output);
@@ -1548,7 +1526,7 @@ mod tests {
 
     #[test]
     fn case_span_index() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = Some(3);
 
         assert_eq!(input.slice_index(3), output);
@@ -1556,7 +1534,7 @@ mod tests {
 
     #[test]
     fn case_span_index_does_not_exist() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = None;
 
         assert_eq!(input.slice_index(7), output);
@@ -1564,7 +1542,7 @@ mod tests {
 
     #[test]
     fn case_span_empty_compare() {
-        let input  = Span::new(b"");
+        let input = Span::new(b"");
         let output = CompareResult::Incomplete;
 
         assert_eq!(input.compare(b"foobar"), output);
@@ -1572,7 +1550,7 @@ mod tests {
 
     #[test]
     fn case_span_find_substring_of_length_0() {
-        let input  = Span::new(b"foobarbaz");
+        let input = Span::new(b"foobarbaz");
         let output = None;
 
         assert_eq!(input.find_substring(b""), output);
@@ -1580,7 +1558,7 @@ mod tests {
 
     #[test]
     fn case_span_find_substring_of_length_1() {
-        let input  = Span::new(b"foobarbaz");
+        let input = Span::new(b"foobarbaz");
         let output = Some(3);
 
         assert_eq!(input.find_substring(b"b"), output);
@@ -1588,7 +1566,7 @@ mod tests {
 
     #[test]
     fn case_span_find_substring_of_length_2() {
-        let input  = Span::new(b"foobarbaz");
+        let input = Span::new(b"foobarbaz");
         let output = Some(3);
 
         assert_eq!(input.find_substring(b"ba"), output);
@@ -1596,7 +1574,7 @@ mod tests {
 
     #[test]
     fn case_span_find_substring_of_length_3() {
-        let input  = Span::new(b"foobarbaz");
+        let input = Span::new(b"foobarbaz");
         let output = Some(3);
 
         assert_eq!(input.find_substring(b"bar"), output);
@@ -1604,7 +1582,7 @@ mod tests {
 
     #[test]
     fn case_span_find_substring_of_length_4() {
-        let input  = Span::new(b"foobarbaz");
+        let input = Span::new(b"foobarbaz");
         let output = Some(3);
 
         assert_eq!(input.find_substring(b"barb"), output);
@@ -1612,7 +1590,7 @@ mod tests {
 
     #[test]
     fn case_span_find_substring_out_of_bound() {
-        let input  = Span::new(b"abc");
+        let input = Span::new(b"abc");
         let output = None;
 
         assert_eq!(input.find_substring(b"cd"), output);
@@ -1620,7 +1598,7 @@ mod tests {
 
     #[test]
     fn case_span_compare_incomplete() {
-        let input  = Span::new(b"foo");
+        let input = Span::new(b"foo");
         let output = CompareResult::Incomplete;
 
         assert_eq!(input.compare(b"foobar"), output);
@@ -1628,7 +1606,7 @@ mod tests {
 
     #[test]
     fn case_span_compare_ok() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = CompareResult::Ok;
 
         assert_eq!(input.compare(b"foobar"), output);
@@ -1636,7 +1614,7 @@ mod tests {
 
     #[test]
     fn case_span_empty_compare_no_case() {
-        let input  = Span::new(b"");
+        let input = Span::new(b"");
         let output = CompareResult::Incomplete;
 
         assert_eq!(input.compare(b"foobar"), output);
@@ -1644,7 +1622,7 @@ mod tests {
 
     #[test]
     fn case_span_compare_no_case_incomplete() {
-        let input  = Span::new(b"foo");
+        let input = Span::new(b"foo");
         let output = CompareResult::Incomplete;
 
         assert_eq!(input.compare(b"foobar"), output);
@@ -1652,7 +1630,7 @@ mod tests {
 
     #[test]
     fn case_span_compare_no_case_ok() {
-        let input  = Span::new(b"foobar");
+        let input = Span::new(b"foobar");
         let output = CompareResult::Ok;
 
         assert_eq!(input.compare(b"foobar"), output);
@@ -1660,13 +1638,13 @@ mod tests {
 
     #[test]
     fn case_span_slice_with_range() {
-        let range  = 2..5;
-        let input  = b"foobar";
-        let output = Span { 
+        let range = 2..5;
+        let input = b"foobar";
+        let output = Span {
             offset: 2,
-            line  : 1,
+            line: 1,
             column: 3,
-            slice : &input[range.clone()]
+            slice: &input[range.clone()],
         };
 
         assert_eq!(Span::new(input).slice(range.clone()), output);
@@ -1674,13 +1652,13 @@ mod tests {
 
     #[test]
     fn case_span_slice_with_range_to() {
-        let range  = 2..;
-        let input  = b"foobar";
-        let output = Span { 
+        let range = 2..;
+        let input = b"foobar";
+        let output = Span {
             offset: 2,
-            line  : 1,
+            line: 1,
             column: 3,
-            slice : &input[range.clone()]
+            slice: &input[range.clone()],
         };
 
         assert_eq!(Span::new(input).slice(range.clone()), output);
@@ -1688,13 +1666,13 @@ mod tests {
 
     #[test]
     fn case_span_slice_with_range_from() {
-        let range  = ..3;
-        let input  = b"foobar";
-        let output = Span { 
+        let range = ..3;
+        let input = b"foobar";
+        let output = Span {
             offset: 0,
-            line  : 1,
+            line: 1,
             column: 1,
-            slice : &input[range.clone()]
+            slice: &input[range.clone()],
         };
 
         assert_eq!(Span::new(input).slice(range.clone()), output);
@@ -1702,13 +1680,13 @@ mod tests {
 
     #[test]
     fn case_span_slice_with_range_full() {
-        let range  = ..;
-        let input  = b"foobar";
-        let output = Span { 
+        let range = ..;
+        let input = b"foobar";
+        let output = Span {
             offset: 0,
-            line  : 1,
+            line: 1,
             column: 1,
-            slice : &input[range.clone()]
+            slice: &input[range.clone()],
         };
 
         assert_eq!(Span::new(input).slice(range.clone()), output);
@@ -1737,42 +1715,42 @@ mod tests {
         let output = Ok((
             Span {
                 offset: 25,
-                line  : 4,
+                line: 4,
                 column: 12,
-                slice : &b""[..]
+                slice: &b""[..],
             },
             vec![
                 Span {
                     offset: 0,
-                    line  : 1,
+                    line: 1,
                     column: 1,
-                    slice : &b"foo"[..],
+                    slice: &b"foo"[..],
                 },
                 Span {
                     offset: 4,
-                    line  : 1,
+                    line: 1,
                     column: 5,
-                    slice : &b"bar"[..],
+                    slice: &b"bar"[..],
                 },
                 Span {
                     offset: 8,
-                    line  : 2,
+                    line: 2,
                     column: 1,
-                    slice : &b"baz"[..],
+                    slice: &b"baz"[..],
                 },
                 Span {
                     offset: 16,
-                    line  : 4,
+                    line: 4,
                     column: 3,
-                    slice : &b"baz"[..],
+                    slice: &b"baz"[..],
                 },
                 Span {
                     offset: 22,
-                    line  : 4,
+                    line: 4,
                     column: 9,
-                    slice : &b"qux"[..],
-                }
-            ]
+                    slice: &b"qux"[..],
+                },
+            ],
         ));
 
         assert_eq!(test(Span::new(input)), output);

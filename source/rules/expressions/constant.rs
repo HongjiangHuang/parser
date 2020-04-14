@@ -35,13 +35,10 @@
 //! Specification in the [Grammar chapter, Expressions
 //! section](https://github.com/php/php-langspec/blob/master/spec/19-grammar.md#constant-expressions).
 
-use super::primaries::array;
-use super::super::literals::literal;
-use super::super::super::ast::{
-    Expression,
-    Literal
-};
+use super::super::super::ast::{Expression, Literal};
 use super::super::super::tokens::Span;
+use super::super::literals::literal;
+use super::primaries::array;
 
 named_attr!(
     #[doc="

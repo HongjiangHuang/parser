@@ -1,5 +1,4 @@
 #![crate_type = "lib"]
-
 // Tagua VM
 //
 //
@@ -55,9 +54,8 @@
 
 // Force all public items to be documented.
 #![deny(missing_docs)]
-
 // Increase the macro recursion limit.
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
 extern crate bytecount;
 #[macro_use]

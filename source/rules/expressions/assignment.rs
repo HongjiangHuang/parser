@@ -36,15 +36,10 @@
 //! operators
 //! section](https://github.com/php/php-langspec/blob/master/spec/10-expressions.md#assignment-operators).
 
-use super::super::expressions::expression;
-use super::super::super::ast::{
-    NAryOperation,
-    BinaryOperator,
-    Expression,
-    TernaryOperator,
-};
-use super::super::super::tokens::Span;
+use super::super::super::ast::{BinaryOperator, Expression, NAryOperation, TernaryOperator};
 use super::super::super::tokens;
+use super::super::super::tokens::Span;
+use super::super::expressions::expression;
 use super::super::tokens::qualified_name;
 
 named_attr!(
@@ -298,79 +293,67 @@ named!(
     )
 );
 
-
 #[cfg(test)]
 mod tests {
-    use super::assignment;
     use super::super::super::super::ast::{
-        BinaryOperator,
-        Expression,
-        Literal,
-        NAryOperation,
-        Name,
-        TernaryOperator,
-        Variable
+        BinaryOperator, Expression, Literal, NAryOperation, Name, TernaryOperator, Variable,
     };
-    use super::super::super::super::tokens::{
-        Span,
-        Token
-    };
+    use super::super::super::super::tokens::{Span, Token};
+    use super::assignment;
 
     /// Build a nullary operation.
     macro_rules! nullary_operation {
-        ($expression:expr) => (
+        ($expression:expr) => {
             NAryOperation::Nullary(Box::new($expression))
-        )
+        };
     }
 
     /// Build a binary operation.
     macro_rules! binary_operation {
-        ($operator:ident, $left_operand:expr, $right_operand:expr) => (
+        ($operator:ident, $left_operand:expr, $right_operand:expr) => {
             NAryOperation::Binary {
-                operator     : BinaryOperator::$operator,
-                left_operand : Box::new($left_operand),
-                right_operand: Box::new($right_operand)
+                operator: BinaryOperator::$operator,
+                left_operand: Box::new($left_operand),
+                right_operand: Box::new($right_operand),
             }
-        )
+        };
     }
 
     /// Build a ternary operation.
     macro_rules! ternary_operation {
-        ($operator:ident, $left_operand:expr, $middle_operand:expr, $right_operand:expr) => (
+        ($operator:ident, $left_operand:expr, $middle_operand:expr, $right_operand:expr) => {
             NAryOperation::Ternary {
-                operator      : TernaryOperator::$operator,
-                left_operand  : Box::new($left_operand),
+                operator: TernaryOperator::$operator,
+                left_operand: Box::new($left_operand),
                 middle_operand: Box::new($middle_operand),
-                right_operand : Box::new($right_operand)
+                right_operand: Box::new($right_operand),
             }
-        )
+        };
     }
 
     /// Build a literal expression with an integer inside.
     macro_rules! integer {
-        ($value:expr, $span:expr) => (
+        ($value:expr, $span:expr) => {
             Expression::Literal(Literal::Integer(Token::new($value, $span)))
-        )
+        };
     }
 
     #[test]
     fn case_conditional() {
-        let input  = Span::new(b"1 ? 2 : 3 ? 4 : 5");
+        let input = Span::new(b"1 ? 2 : 3 ? 4 : 5");
         let output = Ok((
             Span::new_at(b"", 17, 1, 18),
-            Expression::NAryOperation(
+            Expression::NAryOperation(ternary_operation!(
+                Conditional,
                 ternary_operation!(
                     Conditional,
-                    ternary_operation!(
-                        Conditional,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        integer!(2, Span::new_at(b"2", 4, 1, 5)),
-                        nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                    ),
-                    integer!(4, Span::new_at(b"4", 12, 1, 13)),
-                    nullary_operation!(integer!(5, Span::new_at(b"5", 16, 1, 17)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    integer!(2, Span::new_at(b"2", 4, 1, 5)),
+                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+                ),
+                integer!(4, Span::new_at(b"4", 12, 1, 13)),
+                nullary_operation!(integer!(5, Span::new_at(b"5", 16, 1, 17)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -378,20 +361,18 @@ mod tests {
 
     #[test]
     fn case_conditional_with_none_middle_operator() {
-        let input  = Span::new(b"1 ?: 2 ? : 3");
+        let input = Span::new(b"1 ?: 2 ? : 3");
         let output = Ok((
             Span::new_at(b"", 12, 1, 13),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Conditional,
                 binary_operation!(
                     Conditional,
-                    binary_operation!(
-                        Conditional,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 11, 1, 12)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 11, 1, 12)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -399,20 +380,18 @@ mod tests {
 
     #[test]
     fn case_logical_or() {
-        let input  = Span::new(b"1 || 2 || 3");
+        let input = Span::new(b"1 || 2 || 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                LogicalOr,
                 binary_operation!(
                     LogicalOr,
-                    binary_operation!(
-                        LogicalOr,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -420,20 +399,18 @@ mod tests {
 
     #[test]
     fn case_logical_and() {
-        let input  = Span::new(b"1 && 2 && 3");
+        let input = Span::new(b"1 && 2 && 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                LogicalAnd,
                 binary_operation!(
                     LogicalAnd,
-                    binary_operation!(
-                        LogicalAnd,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -441,20 +418,18 @@ mod tests {
 
     #[test]
     fn case_bitwise_or() {
-        let input  = Span::new(b"1 | 2 | 3");
+        let input = Span::new(b"1 | 2 | 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                BitwiseOr,
                 binary_operation!(
                     BitwiseOr,
-                    binary_operation!(
-                        BitwiseOr,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -462,20 +437,18 @@ mod tests {
 
     #[test]
     fn case_bitwise_xor() {
-        let input  = Span::new(b"1 ^ 2 ^ 3");
+        let input = Span::new(b"1 ^ 2 ^ 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                BitwiseXor,
                 binary_operation!(
                     BitwiseXor,
-                    binary_operation!(
-                        BitwiseXor,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -483,20 +456,18 @@ mod tests {
 
     #[test]
     fn case_bitwise_and() {
-        let input  = Span::new(b"1 & 2 & 3");
+        let input = Span::new(b"1 & 2 & 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                BitwiseAnd,
                 binary_operation!(
                     BitwiseAnd,
-                    binary_operation!(
-                        BitwiseAnd,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -504,20 +475,18 @@ mod tests {
 
     #[test]
     fn case_equality_identical() {
-        let input  = Span::new(b"1 === 2 === 3");
+        let input = Span::new(b"1 === 2 === 3");
         let output = Ok((
             Span::new_at(b"", 13, 1, 14),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Identical,
                 binary_operation!(
                     Identical,
-                    binary_operation!(
-                        Identical,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 6, 1, 7)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 12, 1, 13)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 6, 1, 7)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 12, 1, 13)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -525,20 +494,18 @@ mod tests {
 
     #[test]
     fn case_equality_not_identical() {
-        let input  = Span::new(b"1 !== 2 !== 3");
+        let input = Span::new(b"1 !== 2 !== 3");
         let output = Ok((
             Span::new_at(b"", 13, 1, 14),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                NotIdentical,
                 binary_operation!(
                     NotIdentical,
-                    binary_operation!(
-                        NotIdentical,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 6, 1, 7)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 12, 1, 13)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 6, 1, 7)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 12, 1, 13)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -546,20 +513,18 @@ mod tests {
 
     #[test]
     fn case_equality_equal() {
-        let input  = Span::new(b"1 == 2 == 3");
+        let input = Span::new(b"1 == 2 == 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Equal,
                 binary_operation!(
                     Equal,
-                    binary_operation!(
-                        Equal,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -567,20 +532,18 @@ mod tests {
 
     #[test]
     fn case_equality_not_equal() {
-        let input  = Span::new(b"1 != 2 != 3");
+        let input = Span::new(b"1 != 2 != 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                NotEqual,
                 binary_operation!(
                     NotEqual,
-                    binary_operation!(
-                        NotEqual,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -588,20 +551,18 @@ mod tests {
 
     #[test]
     fn case_equality_not_equal_bis() {
-        let input  = Span::new(b"1 <> 2 <> 3");
+        let input = Span::new(b"1 <> 2 <> 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                NotEqual,
                 binary_operation!(
                     NotEqual,
-                    binary_operation!(
-                        NotEqual,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -609,20 +570,18 @@ mod tests {
 
     #[test]
     fn case_relational_compare() {
-        let input  = Span::new(b"1 <=> 2 <=> 3");
+        let input = Span::new(b"1 <=> 2 <=> 3");
         let output = Ok((
             Span::new_at(b"", 13, 1, 14),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Comparison,
                 binary_operation!(
                     Comparison,
-                    binary_operation!(
-                        Comparison,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 6, 1, 7)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 12, 1, 13)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 6, 1, 7)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 12, 1, 13)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -630,20 +589,18 @@ mod tests {
 
     #[test]
     fn case_relational_less_than_or_equal_to() {
-        let input  = Span::new(b"1 <= 2 <= 3");
+        let input = Span::new(b"1 <= 2 <= 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                LessThanOrEqualTo,
                 binary_operation!(
                     LessThanOrEqualTo,
-                    binary_operation!(
-                        LessThanOrEqualTo,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -651,20 +608,18 @@ mod tests {
 
     #[test]
     fn case_relational_greater_than_or_equal_to() {
-        let input  = Span::new(b"1 >= 2 >= 3");
+        let input = Span::new(b"1 >= 2 >= 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                GreaterThanOrEqualTo,
                 binary_operation!(
                     GreaterThanOrEqualTo,
-                    binary_operation!(
-                        GreaterThanOrEqualTo,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -672,20 +627,18 @@ mod tests {
 
     #[test]
     fn case_relational_less_than() {
-        let input  = Span::new(b"1 < 2 < 3");
+        let input = Span::new(b"1 < 2 < 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                LessThan,
                 binary_operation!(
                     LessThan,
-                    binary_operation!(
-                        LessThan,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -693,20 +646,18 @@ mod tests {
 
     #[test]
     fn case_relational_greater_than() {
-        let input  = Span::new(b"1 > 2 > 3");
+        let input = Span::new(b"1 > 2 > 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                GreaterThan,
                 binary_operation!(
                     GreaterThan,
-                    binary_operation!(
-                        GreaterThan,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -714,20 +665,18 @@ mod tests {
 
     #[test]
     fn case_shift_left() {
-        let input  = Span::new(b"1 << 2 << 3");
+        let input = Span::new(b"1 << 2 << 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                BitwiseShiftLeft,
                 binary_operation!(
                     BitwiseShiftLeft,
-                    binary_operation!(
-                        BitwiseShiftLeft,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -735,20 +684,18 @@ mod tests {
 
     #[test]
     fn case_shift_right() {
-        let input  = Span::new(b"1 >> 2 >> 3");
+        let input = Span::new(b"1 >> 2 >> 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                BitwiseShiftRight,
                 binary_operation!(
                     BitwiseShiftRight,
-                    binary_operation!(
-                        BitwiseShiftRight,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -756,20 +703,18 @@ mod tests {
 
     #[test]
     fn case_additive_plus() {
-        let input  = Span::new(b"1 + 2 + 3");
+        let input = Span::new(b"1 + 2 + 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Plus,
                 binary_operation!(
                     Plus,
-                    binary_operation!(
-                        Plus,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -777,20 +722,18 @@ mod tests {
 
     #[test]
     fn case_additive_minus() {
-        let input  = Span::new(b"1 - 2 - 3");
+        let input = Span::new(b"1 - 2 - 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Minus,
                 binary_operation!(
                     Minus,
-                    binary_operation!(
-                        Minus,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -798,20 +741,18 @@ mod tests {
 
     #[test]
     fn case_additive_dot() {
-        let input  = Span::new(b"1 . 2 . 3");
+        let input = Span::new(b"1 . 2 . 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Dot,
                 binary_operation!(
                     Dot,
-                    binary_operation!(
-                        Dot,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -819,20 +760,18 @@ mod tests {
 
     #[test]
     fn case_multiplicative_multiply() {
-        let input  = Span::new(b"1 * 2 * 3");
+        let input = Span::new(b"1 * 2 * 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Multiplication,
                 binary_operation!(
                     Multiplication,
-                    binary_operation!(
-                        Multiplication,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -840,20 +779,18 @@ mod tests {
 
     #[test]
     fn case_multiplicative_division() {
-        let input  = Span::new(b"1 / 2 / 3");
+        let input = Span::new(b"1 / 2 / 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Division,
                 binary_operation!(
                     Division,
-                    binary_operation!(
-                        Division,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -861,20 +798,18 @@ mod tests {
 
     #[test]
     fn case_multiplicative_modulo() {
-        let input  = Span::new(b"1 % 2 % 3");
+        let input = Span::new(b"1 % 2 % 3");
         let output = Ok((
             Span::new_at(b"", 9, 1, 10),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Modulo,
                 binary_operation!(
                     Modulo,
-                    binary_operation!(
-                        Modulo,
-                        nullary_operation!(integer!(1, Span::new(b"1"))),
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
-                    ),
-                    nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
-                )
-            )
+                    nullary_operation!(integer!(1, Span::new(b"1"))),
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 4, 1, 5)))
+                ),
+                nullary_operation!(integer!(3, Span::new_at(b"3", 8, 1, 9)))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -882,16 +817,16 @@ mod tests {
 
     #[test]
     fn case_instanceof_with_qualified_name_type_designator() {
-        let input  = Span::new(b"1 instanceof C");
+        let input = Span::new(b"1 instanceof C");
         let output = Ok((
             Span::new_at(b"", 14, 1, 15),
-            Expression::NAryOperation(
-                binary_operation!(
-                    InstanceOf,
-                    nullary_operation!(integer!(1, Span::new(b"1"))),
-                    nullary_operation!(Expression::Name(Name::Unqualified(Span::new_at(b"C", 13, 1, 14))))
-                )
-            )
+            Expression::NAryOperation(binary_operation!(
+                InstanceOf,
+                nullary_operation!(integer!(1, Span::new(b"1"))),
+                nullary_operation!(Expression::Name(Name::Unqualified(Span::new_at(
+                    b"C", 13, 1, 14
+                ))))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -899,16 +834,16 @@ mod tests {
 
     #[test]
     fn case_instanceof_with_expression_type_designator() {
-        let input  = Span::new(b"1 instanceof $c");
+        let input = Span::new(b"1 instanceof $c");
         let output = Ok((
             Span::new_at(b"", 15, 1, 16),
-            Expression::NAryOperation(
-                binary_operation!(
-                    InstanceOf,
-                    nullary_operation!(integer!(1, Span::new(b"1"))),
-                    nullary_operation!(Expression::Variable(Variable(Span::new_at(b"c", 14, 1, 15))))
-                )
-            )
+            Expression::NAryOperation(binary_operation!(
+                InstanceOf,
+                nullary_operation!(integer!(1, Span::new(b"1"))),
+                nullary_operation!(Expression::Variable(Variable(Span::new_at(
+                    b"c", 14, 1, 15
+                ))))
+            )),
         ));
 
         assert_eq!(assignment(input), output);
@@ -916,20 +851,18 @@ mod tests {
 
     #[test]
     fn case_coalesce() {
-        let input  = Span::new(b"1 ?? 2 ?? 3");
+        let input = Span::new(b"1 ?? 2 ?? 3");
         let output = Ok((
             Span::new_at(b"", 11, 1, 12),
-            Expression::NAryOperation(
+            Expression::NAryOperation(binary_operation!(
+                Coalesce,
+                nullary_operation!(integer!(1, Span::new(b"1"))),
                 binary_operation!(
                     Coalesce,
-                    nullary_operation!(integer!(1, Span::new(b"1"))),
-                    binary_operation!(
-                        Coalesce,
-                        nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6))),
-                        nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
-                    )
+                    nullary_operation!(integer!(2, Span::new_at(b"2", 5, 1, 6))),
+                    nullary_operation!(integer!(3, Span::new_at(b"3", 10, 1, 11)))
                 )
-            )
+            )),
         ));
 
         assert_eq!(assignment(input), output);
